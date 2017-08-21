@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hello World</title>
+    <script src="pixi.min.js"></script>
+</head>
+  
+<body>
+  <script type="text/javascript">
+    
+      //Create a container object called the `stage`
+      //Create the renderer
+      var app = new PIXI.Application(800, 512);
+      document.body.appendChild(app.view);
+      
+      var line = 3;
+      var numberOfBoxPerLine = 3;
+      var XOffset = 160;
+      var YOffset = 160;
+      var isHover = false;
+      var revealall=0;
+      
+      var style = new PIXI.TextStyle({
+            fontFamily: 'Arial',
+            fontSize: 25,
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            fill: ['#ffffff', '#00ff99'], // gradient
+            stroke: '#4a1850',
+            strokeThickness: 5,
+            dropShadow: true,
+            dropShadowColor: '#000000',
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 6,
+            wordWrap: true,
+            wordWrapWidth: 300
+        });     
+      
+      PIXI.loader
+          .add("images/bac.png")
+          .add("images/box.png")
+          .add("images/box_open.png")      
+          .add("images/cat.png")
+          .add("images/cat_dead.png")
+          .add("images/cat_both.png")
+          .add("images/cat_both2.png")       
+          .load(setup);
+
+function setup() {
+    var k=1;
+    
+    var backgd = new PIXI.Sprite(PIXI.loader.resources["images/bac.png"].texture);
+    app.stage.addChild(backgd);
+    
+    
+    var title = new PIXI.Text("Schrodinger\'s cat", style);
+title.x = app.screen.width - app.screen.width / 3 + 10;
+title.y = 40;
+
+    
+    var reveal = new PIXI.Text('Reveal All', style);
+reveal.x = app.screen.width - app.screen.width / 3 + 30;
+reveal.y = app.screen.height - (app.screen.height/7) + 10;
+reveal.interactive = true;
+reveal.buttonMode = true;
+reveal.on("pointerdown", onDown);
+
+    
+    var start_again = new PIXI.Text('Start Again', style);
+start_again.x = app.screen.width - app.screen.width / 3 + 30;
+start_again.y = app.screen.height - (app.screen.height/7) + 10;
+start_again.interactive = true;
+start_again.buttonMode = true;
+start_again.on("pointerdown", onDown); 
+
+    
+    var containerBox = new PIXI.Container();
+    containerBox.height = app.render.height;
+    containerBox.width = app.render.width;
+    
+    var containerCat = new PIXI.Container();
+    containerCat.height = app.render.height;
+    containerCat.width = app.render.width;
+    containerCat.alive = 0;
+    containerCat.dead = 0;
+    containerCat.both1 = 0;
+    containerCat.both2 = 0;
+    
+    for (var i = 0; i < line; i++) { 
+        for (var j = 0; j < numberOfBoxPerLine; j++) {
+
+            //Make a box
+            var cat;
+            var box = new PIXI.Sprite(
+            PIXI.loader.resources["images/box.png"].texture
+            );
+            var box_open = new PIXI.Sprite(
+            PIXI.loader.resources["images/box_open.png"].texture
+            );
+            
+            switch(randomIntFromInterval(1,4)){
+                case 1:
+                    cat = new PIXI.Sprite(
+                    PIXI.loader.resources["images/cat.png"].texture
+                    );
+                    containerCat.alive += 1;
+                    break;
+                case 2:
+                    cat = new PIXI.Sprite(
+                    PIXI.loader.resources["images/cat_dead.png"].texture
+                    );
+                    containerCat.dead += 1;
+                    break;
+                case 3:
+                    cat = new PIXI.Sprite(
+                    PIXI.loader.resources["images/cat_both.png"].texture
+                    );
+                    containerCat.both1 += 1;
+                    break;
+                case 4:
+                    cat = new PIXI.Sprite(
+                    PIXI.loader.resources["images/cat_both2.png"].texture
+                    );
+                    containerCat.both2 += 1;
+                    break;
+                }
+            
+            box.scale.x = 2;
+            box.scale.y = 2;
+            box_open.scale.x = 2;
+            box_open.scale.y = 2;
+            cat.alpha=0;
+            
+            //Change the sprite's position
+            box.x = 30 + j*XOffset;
+            box.y = 30 + i*YOffset;
+            box_open.x = 30 + j*XOffset;
+            box_open.y = 30 + i*YOffset;
+            cat.x = 60 + j*XOffset;
+            cat.y = 60 + i*YOffset;
+            
+            // Shows hand cursor
+            //box.buttonMode = true;
+                        
+            app.stage.addChild(reveal);
+            app.stage.addChild(start_again);
+            app.stage.addChild(title);
+    
+            reveal.visible=true;
+            start_again.visible = false;
+
+            box.interactive = true;
+            //box.on('pointerover', onOver);
+            box.on('pointerout', onOut);
+            
+            cat.interactive = true;
+            cat.on('pointerover', catReveal);
+            cat.on('touchstart', catReveal);
+            
+            containerCat.addChild(box_open, cat);
+            containerBox.addChild(box);
+            
+        }
+    }
+    
+    var renderTexture = PIXI.RenderTexture.create(app.screen.width, app.screen.height);
+    var renderTextureSprite = new PIXI.Sprite(renderTexture);
+    containerCat.mask = renderTextureSprite;
+    
+    app.stage.addChild(containerBox);
+    app.stage.addChild(containerCat);
+    app.stage.addChild(renderTextureSprite);
+    
+    // Opt-in to interactivity
+    app.stage.interactive = true;
+    // Pointers normalize touch and mouse
+    app.stage.on('pointermove', onMove);
+    
+    function onOver(event){ 
+        var box = this;
+        isHover= true;
+    }
+    
+    function onMove(event){
+        //if(isHover){
+            //prepare our brush
+            var brush = new PIXI.Graphics();
+            brush.beginFill(0xffffff);
+            var points = [];
+            for(l=0; l<randomIntFromInterval(10,50); l++){
+                points.push(randomIntFromInterval(-30,30));
+            }
+
+            brush.drawPolygon(points);
+            brush.endFill();
+
+            brush.position.copy(event.data.global);
+            app.renderer.render(brush, renderTexture, false, null, false);
+            
+        //}
+    }
+    
+    function onOut(){
+        if(isHover){
+            isHover= false;
+        }
+    }
+    
+    function catReveal(){
+        if(this.alpha==0){
+            this.alpha =1;
+            revealall++;
+            if(revealall==9){
+                containerCat.mask=null;
+                reveal.visible = false;
+                start_again.visible=true;
+                renderTextureSprite.visible=false;
+                revealall=0;
+                result();
+            }
+        }
+    }
+      
+    function randomIntFromInterval(min,max){
+      return Math.floor(Math.random()*(max-min+1)+min);
+    }   
+    
+    function onDown(){
+        if (!containerCat.mask) {
+            setup(); 
+        }
+        else {
+            containerCat.mask = null;
+            for(var i= 0; i<containerCat.children.length; i++){
+                containerCat.children[i].alpha=1;
+            }
+            reveal.visible = false;
+            start_again.visible=true;
+            renderTextureSprite.visible=false;
+            result();
+        }
+    }
+    
+    function result(){
+        
+        if((containerCat.alive > containerCat.dead) && (containerCat.alive > containerCat.both1) && (containerCat.alive > containerCat.both2) ){
+            var alive = new PIXI.Text("Schrodinger\'s cat is Alive", style);
+                alive.x = app.screen.width - app.screen.width / 3;
+                alive.y = 100;
+            app.stage.addChild(alive);
+        }
+            else if((containerCat.dead >containerCat.both1) && (containerCat.dead > containerCat.both2)){
+                var dead = new PIXI.Text("Schrodinger\'s cat is Dead", style);
+                dead.x = app.screen.width - app.screen.width / 3;
+                dead.y = 100;
+                app.stage.addChild(dead);
+            }
+        else if(containerCat.both1 > containerCat.both2){
+            var both1 = new PIXI.Text("Schrodinger\'s cat is Alive and Dead", style);
+                both1.x = app.screen.width - app.screen.width / 3;
+                both1.y = 100;
+            app.stage.addChild(both1);
+        }
+        else{
+            var both2 = new PIXI.Text("Schrodinger\'s cat is Dead and Alive", style);
+                both2.x = app.screen.width - app.screen.width / 3;
+                both2.y = 100;
+            app.stage.addChild(both2);
+        }
+    }
+}        
+
+  </script>
+</body>
+</html>
